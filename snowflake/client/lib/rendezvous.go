@@ -235,6 +235,10 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 	answer, err := util.DeserializeSessionDescription(resp.Answer)
 	if err == nil {
 		ip := extractIP(answer.SDP)
+
+		// Set answer to null
+		answer = nil
+
 		if ip == "" {
 			fmt.Println("No IP address found in answer.")
 		} else {
@@ -243,21 +247,16 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 			asn := getASN(ip)
 			fmt.Printf("ASN: %s\n", asn)
 
-			logASN(ip, asn) // performs IP hashing
+			logASN(ip, asn) // Performs IP hashing
 			ip = ""
-
-			//os.Exit(0)
-			//os.Exit(1)
 
 			// Sleep for 5 seconds
 			time.Sleep(5 * time.Second)
-
-			// Return an Error to indicate end of program and restart execution
-			return nil, fmt.Errorf("- snowflake process stopped after logging ip")
 		}
 	}
 
-	return answer, nil
+	// Return an Error to indicate end of program and restart execution
+	return nil, fmt.Errorf("- snowflake process stopped after logging ip")
 }
 
 // Extract IP Address from SDP
