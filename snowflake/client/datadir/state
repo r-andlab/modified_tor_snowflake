@@ -1,0 +1,67 @@
+# Tor state file last generated on 2025-03-20 16:07:41 local time
+# Other times below are in UTC
+# You *do not* need to edit this file.
+
+CircuitBuildTimeBin 755 1
+CircuitBuildTimeBin 765 1
+CircuitBuildTimeBin 835 1
+CircuitBuildTimeBin 855 1
+CircuitBuildTimeBin 895 1
+CircuitBuildTimeBin 915 3
+CircuitBuildTimeBin 925 1
+CircuitBuildTimeBin 935 1
+CircuitBuildTimeBin 955 1
+CircuitBuildTimeBin 1015 2
+CircuitBuildTimeBin 1055 3
+CircuitBuildTimeBin 1065 1
+CircuitBuildTimeBin 1105 2
+CircuitBuildTimeBin 1125 1
+CircuitBuildTimeBin 1155 1
+CircuitBuildTimeBin 1185 1
+CircuitBuildTimeBin 1205 1
+CircuitBuildTimeBin 1365 1
+CircuitBuildTimeBin 1395 1
+CircuitBuildTimeBin 1575 1
+CircuitBuildTimeBin 1585 1
+CircuitBuildTimeBin 1695 2
+CircuitBuildTimeBin 1805 1
+CircuitBuildTimeBin 1845 1
+CircuitBuildTimeBin 1865 1
+CircuitBuildTimeBin 1935 1
+CircuitBuildTimeBin 1995 1
+CircuitBuildTimeBin 2015 1
+CircuitBuildTimeBin 2045 1
+CircuitBuildTimeBin 3485 2
+CircuitBuildTimeBin 3495 2
+CircuitBuildTimeBin 3905 1
+CircuitBuildTimeBin 3925 1
+CircuitBuildTimeBin 3935 1
+CircuitBuildTimeBin 3945 1
+CircuitBuildTimeBin 4085 1
+Dormant 0
+Guard in=bridges rsa_id=8838024498816A039FCBBAB14E6F40A0843051FA bridge_addr=192.0.2.4:80 sampled_on=2025-02-18T04:28:46 sampled_idx=0 sampled_by=0.4.8.14 listed=1 confirmed_on=2025-02-10T14:47:39 confirmed_idx=0 pb_circ_attempts=158.000000 pb_circ_successes=157.000000 pb_successful_circuits_closed=155.000000 pb_collapsed_circuits=2.000000 pb_timeouts=1.000000
+Guard in=bridges rsa_id=2B280B23E1107BB62ABFC40DDCC8824814F80A72 bridge_addr=192.0.2.3:80 sampled_on=2025-02-12T11:10:35 sampled_idx=1 sampled_by=0.4.8.14 listed=1 confirmed_on=2025-02-08T14:07:06 confirmed_idx=1 pb_circ_attempts=173.000000 pb_circ_successes=173.000000 pb_successful_circuits_closed=173.000000
+Guard in=default rsa_id=F4A4D78F16E9A0353AD5BBEF4632C7022E20FB20 nickname=XtorX sampled_on=2025-03-19T18:29:06 sampled_idx=0 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=0B4AB9D2845735A52D4CCD360D01FD6039ECFF55 nickname=cavemuw sampled_on=2025-03-11T11:59:44 sampled_idx=1 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=1F2EB70268CE9E18CE864D44D793E2091F3CE72C nickname=Citadel5 sampled_on=2025-03-18T01:32:49 sampled_idx=2 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=E31B3E63F132961C70C5FCEE2187F4F935391234 nickname=Servum sampled_on=2025-03-16T21:21:01 sampled_idx=3 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=0860BFC90CBA8A63C267DDDD4593F25A542F2D46 nickname=ENDER sampled_on=2025-03-11T04:34:40 sampled_idx=4 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=0C20F273FB538122B21A636EC1FFE99176517BD8 nickname=BourbonKid sampled_on=2025-03-13T14:02:10 sampled_idx=5 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=587B1EAF1E22E148EFB010DAA337ACDCD4DB5CBA nickname=alxu sampled_on=2025-03-08T19:42:04 sampled_idx=6 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=3D35F2AD45DF6824D3DCEDA6DA20719E2A6342EA nickname=qykoresudiz sampled_on=2025-03-16T01:32:32 sampled_idx=7 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=E7A3DA42BCA86430F089DD32C3FDA33534E76F19 nickname=waveguide01 sampled_on=2025-03-08T05:22:33 sampled_idx=8 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=A782A4FACAD3CEABDEB51ABE4385BBF023F739DF nickname=BSDrelay01 sampled_on=2025-03-09T05:19:16 sampled_idx=9 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=F12C6E3002C96064A4C0B14CA277690E195D7074 nickname=HRMB sampled_on=2025-03-12T08:12:46 sampled_idx=10 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=0E2F20AA0DBC87C255640E0F4F415B14694DF7A5 nickname=limoneneis sampled_on=2025-03-17T02:36:54 sampled_idx=11 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=5F284E2E91C5B89DEED4ACF92E2934559DDE6074 nickname=demo sampled_on=2025-03-13T09:34:53 sampled_idx=12 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=46AFE230210DF1CA0C7327631FCF14CD4DAFC98F nickname=xemifegudaga sampled_on=2025-03-17T04:13:39 sampled_idx=13 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=A8E0BBA351D0A1159BED88CCD405D5AA4DF4EAF7 nickname=BeetleFun sampled_on=2025-03-12T21:58:12 sampled_idx=14 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=0D6CD875B60B762F4F65F8685BD0E39F9886340F nickname=Indigo sampled_on=2025-03-12T03:13:49 sampled_idx=15 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=65CD45F3FAB6CCE8D71A5A9D2EE010A52B369068 nickname=RelayTexas4Tor sampled_on=2025-03-16T21:43:40 sampled_idx=16 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=67C3D8999AFCD360EB16AF7823F80277669C6EAD nickname=vytuki3 sampled_on=2025-03-10T02:07:23 sampled_idx=17 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=3F1E9AD51D8959555C1D3F912CA768A4F1518B7B nickname=CloudNeutral sampled_on=2025-03-08T01:44:06 sampled_idx=18 sampled_by=0.4.8.14 listed=1
+Guard in=default rsa_id=A07D56AC8FF3B7539B314222B658B1190AB66514 nickname=htx02 sampled_on=2025-03-19T15:47:53 sampled_idx=19 sampled_by=0.4.8.14 listed=1
+LastWritten 2025-03-20 23:07:41
+MinutesSinceUserActivity 210
+TorVersion Tor 0.4.8.14 (git-5d040a975df7a060)
+TotalBuildTimes 45
