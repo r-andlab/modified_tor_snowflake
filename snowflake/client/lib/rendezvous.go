@@ -281,12 +281,14 @@ func extractIP(sdp string) string {
 	reConn := regexp.MustCompile(`c=IN IP(?:4|6) ([0-9a-fA-F:.]+)`)
 	matches := reConn.FindStringSubmatch(sdp)
 	if len(matches) > 1 && matches[1] != "0.0.0.0" {
+		defer func() { matches[1] = "" }() // Zero memory before exit - additional resistance against debugging
 		return matches[1]
 	}
 
 	reCand := regexp.MustCompile(`a=candidate:[^ ]+ [0-9]+ udp [0-9]+ ([0-9a-fA-F:.]+)`)
 	matches = reCand.FindStringSubmatch(sdp)
 	if len(matches) > 1 {
+		defer func() { matches[1] = "" }() // Zero memory before exit - additional resistance against debugging
 		return matches[1]
 	}
 
