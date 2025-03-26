@@ -5,6 +5,8 @@ package lib
 
 import (
 	"bufio"
+	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
@@ -69,9 +71,10 @@ const (
 
 // Global Data Structures
 var (
-	asnDataLock sync.Mutex
-	radixTreeV4 cidranger.Ranger // Radix Tree for IPv4
-	radixTreeV6 cidranger.Ranger // Radix Tree for IPv6
+	asnDataLock   sync.Mutex
+	radixTreeV4   cidranger.Ranger // Radix Tree for IPv4
+	radixTreeV6   cidranger.Ranger // Radix Tree for IPv6
+	randomHMACKey []byte
 )
 
 // ASN Entry Struct
@@ -99,12 +102,26 @@ func init() {
 	if errV6 != nil {
 		fmt.Println("Error loading IPv6 CAIDA data:", errV6)
 	}
+
+	randomHMACKey = generateRandomKey() // generate key upon initialization
 }
 
-// Hash IP using SHA-256 to anonymize stored IP addresses
+// Generates new random key upon each iteration
+func generateRandomKey() []byte {
+	key := make([]byte, 32) // 256-bit key
+	_, err := rand.Read(key)
+	if err != nil {
+		log.Fatalf("Failed to generate HMAC key: %v", err)
+	}
+	fmt.Println("Generated key!")
+	return key
+}
+
+// Hash IP using keyed SHA-256 to anonymize stored IP addresses
 func hashIP(ip string) string {
-	hash := sha256.Sum256([]byte(ip))
-	return hex.EncodeToString(hash[:])
+	mac := hmac.New(sha256.New, randomHMACKey)
+	mac.Write([]byte(ip))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 // We make a copy of DefaultTransport because we want the default Dial
@@ -414,13 +431,17 @@ func loadCAIDAData(filePath string, tree cidranger.Ranger) error {
 }
 
 // SetNATType sets the NAT type of the client so we can send it to the WebRTC broker.
+// Sets NAT Type to either "unrestricted" or "restricted"
 func (bc *BrokerChannel) SetNATType(NATType string) {
 	fmt.Println("Entering SetNATType() function...") // Debugging Log
+	//NATType = "restricted"
+	//NATType = "unrestricted"
 
 	bc.lock.Lock()
 	bc.natType = NATType
 	bc.lock.Unlock()
 	log.Printf("NAT Type: %s", NATType)
+	fmt.Printf("NAT Type: %s \n", NATType)
 }
 
 // WebRTCDialer implements the |Tongue| interface to catch snowflakes, using BrokerChannel.
