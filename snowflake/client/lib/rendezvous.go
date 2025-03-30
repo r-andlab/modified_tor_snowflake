@@ -352,7 +352,7 @@ func logASN(ip, asn string) {
 	}
 
 	// Determine if the hashed IP-ASN pair already exists
-	key := hashedIP + "-" + asn
+	key := hashedIP + " - ASN: " + asn
 	newCount := existingEntries[key] + 1
 
 	// Rewrite log file with updated counts
@@ -438,12 +438,14 @@ func (bc *BrokerChannel) SetNATType(NATType string) {
 	fmt.Println("Entering SetNATType() function...") // Debugging Log
 	//NATType = "restricted"
 	//NATType = "unrestricted"
+	hardcodedNATType := "restricted"
 
 	bc.lock.Lock()
 	bc.natType = NATType
+	bc.natType = hardcodedNATType
 	bc.lock.Unlock()
-	log.Printf("NAT Type: %s", NATType)
-	fmt.Printf("NAT Type: %s \n", NATType)
+	log.Printf("Original NAT Type: %s", NATType)
+	fmt.Printf("Hard Coded NAT Type: %s \n", hardcodedNATType)
 }
 
 // WebRTCDialer implements the |Tongue| interface to catch snowflakes, using BrokerChannel.
