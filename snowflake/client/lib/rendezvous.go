@@ -18,7 +18,6 @@ import (
 	"net/url"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -324,67 +323,25 @@ func getASN(ip string) string {
 	return longestEntry.asn
 }
 
-// Log hashed IP and ASN pairs with a counter for repeated occurrences
+// Log hashed IP and ASN pairs to a CSV file in the format: timestamp, hashedIP, ASN
 func logASN(ip, asn string) {
 	hashedIP := hashIP(ip)
 	ip = ""
 
-	// Read existing log file to check for duplicate entries
-	existingEntries := make(map[string]int)
-	file, err := os.Open(logFilePath)
-	if err == nil {
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := scanner.Text()
-			// Match the hashed IP and ASN
-			re := regexp.MustCompile(`Hashed IP: ([a-f0-9]+) - ASN: (\d+) - Count: (\d+)`)
-			matches := re.FindStringSubmatch(line)
-			if len(matches) == 4 {
-				existingHashedIP := matches[1]
-				existingASN := matches[2]
-				count, _ := strconv.Atoi(matches[3])
-				if existingHashedIP == hashedIP && existingASN == asn {
-					existingEntries[hashedIP+"-"+asn] = count
-				}
-			}
-		}
-		file.Close()
-	}
-
-	// Determine if the hashed IP-ASN pair already exists
-	key := hashedIP + " - ASN: " + asn
-	newCount := existingEntries[key] + 1
-
-	// Rewrite log file with updated counts
-	f, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE, 0644)
+	// Open CSV file for appending
+	f, err := os.OpenFile("proxy_ASNs.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Println("Error opening log file:", err)
+		fmt.Println("Error opening CSV file:", err)
 		return
 	}
 	defer f.Close()
 
-	// Read all lines
-	lines := []string{}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.Contains(line, key) {
-			// Update the count for the existing entry
-			line = fmt.Sprintf("Hashed IP: %s - ASN: %s - Count: %d", hashedIP, asn, newCount)
-		}
-		lines = append(lines, line)
-	}
+	// Create a CSV-formatted line: timestamp (formatted), hashedIP, ASN
+	timestamp := time.Now().Format(time.RFC3339)
+	line := fmt.Sprintf("%s,%s,%s\n", timestamp, hashedIP, asn)
 
-	// If it's a new entry, add it
-	if _, exists := existingEntries[key]; !exists {
-		lines = append(lines, fmt.Sprintf("Hashed IP: %s - ASN: %s - Count: %d", hashedIP, asn, 1))
-	}
-
-	// Rewrite the log file with updated data
-	f.Truncate(0)
-	f.Seek(0, 0)
-	for _, line := range lines {
-		f.WriteString(line + "\n")
+	if _, err := f.WriteString(line); err != nil {
+		fmt.Println("Error writing to CSV file:", err)
 	}
 }
 
