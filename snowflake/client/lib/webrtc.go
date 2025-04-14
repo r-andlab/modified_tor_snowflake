@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/url"
 	"sync"
 	"time"
@@ -17,11 +18,10 @@ import (
 
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/event"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/proxy"
+	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/util"
 )
 
 // WebRTCPeer represents a WebRTC connection to a remote snowflake proxy.
-//
-// Each WebRTCPeer only ever has one DataChannel that is used as the peer's transport.
 type WebRTCPeer struct {
 	id        string
 	pc        *webrtc.PeerConnection
@@ -30,39 +30,19 @@ type WebRTCPeer struct {
 	recvPipe  *io.PipeReader
 	writePipe *io.PipeWriter
 
-	mu          sync.Mutex // protects the following:
+	mu          sync.Mutex
 	lastReceive time.Time
 
-	open   chan struct{} // Channel to notify when datachannel opens
+	open   chan struct{}
 	closed chan struct{}
 
-	once sync.Once // Synchronization for PeerConnection destruction
+	once sync.Once
 
 	bytesLogger  bytesLogger
 	eventsLogger event.SnowflakeEventReceiver
 	proxy        *url.URL
 }
 
-// Deprecated: Use NewWebRTCPeerWithEventsAndProxy Instead.
-func NewWebRTCPeer(
-	config *webrtc.Configuration, broker *BrokerChannel,
-) (*WebRTCPeer, error) {
-	return NewWebRTCPeerWithEventsAndProxy(config, broker, nil, nil)
-}
-
-// Deprecated: Use NewWebRTCPeerWithEventsAndProxy Instead.
-func NewWebRTCPeerWithEvents(
-	config *webrtc.Configuration, broker *BrokerChannel,
-	eventsLogger event.SnowflakeEventReceiver,
-) (*WebRTCPeer, error) {
-	return NewWebRTCPeerWithEventsAndProxy(config, broker, eventsLogger, nil)
-}
-
-// NewWebRTCPeerWithEventsAndProxy constructs a WebRTC PeerConnection to a snowflake proxy.
-//
-// The creation of the peer handles the signaling to the Snowflake broker, including
-// the exchange of SDP information, the creation of a PeerConnection, and the establishment
-// of a DataChannel to the Snowflake proxy.
 func NewWebRTCPeerWithEventsAndProxy(
 	config *webrtc.Configuration, broker *BrokerChannel,
 	eventsLogger event.SnowflakeEventReceiver, proxy *url.URL,
@@ -80,13 +60,8 @@ func NewWebRTCPeerWithEventsAndProxy(
 		connection.id = "snowflake-" + hex.EncodeToString(buf[:])
 	}
 	connection.closed = make(chan struct{})
-
-	// Override with something that's not NullLogger to have real logging.
 	connection.bytesLogger = &bytesNullLogger{}
-
-	// Pipes remain the same even when DataChannel gets switched.
 	connection.recvPipe, connection.writePipe = io.Pipe()
-
 	connection.eventsLogger = eventsLogger
 	connection.proxy = proxy
 
@@ -98,14 +73,10 @@ func NewWebRTCPeerWithEventsAndProxy(
 	return connection, nil
 }
 
-// Read bytes from local SOCKS.
-// As part of |io.ReadWriter|
 func (c *WebRTCPeer) Read(b []byte) (int, error) {
 	return c.recvPipe.Read(b)
 }
 
-// Writes bytes out to remote WebRTC.
-// As part of |io.ReadWriter|
 func (c *WebRTCPeer) Write(b []byte) (int, error) {
 	err := c.transport.Send(b)
 	if err != nil {
@@ -115,17 +86,15 @@ func (c *WebRTCPeer) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-// Closed returns a boolean indicated whether the peer is closed.
 func (c *WebRTCPeer) Closed() bool {
 	select {
 	case <-c.closed:
 		return true
 	default:
+		return false
 	}
-	return false
 }
 
-// Close closes the connection the snowflake proxy.
 func (c *WebRTCPeer) Close() error {
 	c.once.Do(func() {
 		close(c.closed)
@@ -135,9 +104,6 @@ func (c *WebRTCPeer) Close() error {
 	return nil
 }
 
-// Prevent long-lived broken remotes.
-// Should also update the DataChannel in underlying go-webrtc's to make Closes
-// more immediate / responsive.
 func (c *WebRTCPeer) checkForStaleness(timeout time.Duration) {
 	c.mu.Lock()
 	c.lastReceive = time.Now()
@@ -147,8 +113,7 @@ func (c *WebRTCPeer) checkForStaleness(timeout time.Duration) {
 		lastReceive := c.lastReceive
 		c.mu.Unlock()
 		if time.Since(lastReceive) > timeout {
-			log.Printf("WebRTC: No messages received for %v -- closing stale connection.",
-				timeout)
+			log.Printf("WebRTC: No messages received for %v -- closing stale connection.", timeout)
 			err := errors.New("no messages received, closing stale connection")
 			c.eventsLogger.OnNewSnowflakeEvent(event.EventOnSnowflakeConnectionFailed{Error: err})
 			c.Close()
@@ -162,11 +127,13 @@ func (c *WebRTCPeer) checkForStaleness(timeout time.Duration) {
 	}
 }
 
-// connect does the bulk of the work: gather ICE candidates, send the SDP offer to broker,
-// receive an answer from broker, and wait for data channel to open
-func (c *WebRTCPeer) connect(config *webrtc.Configuration, broker *BrokerChannel) error {
+func (c *WebRTCPeer) connect(
+	config *webrtc.Configuration,
+	broker *BrokerChannel,
+) error {
 	log.Println(c.id, " connecting...")
-	err := c.preparePeerConnection(config)
+
+	err := c.preparePeerConnection(config, broker.keepLocalAddresses)
 	localDescription := c.pc.LocalDescription()
 	c.eventsLogger.OnNewSnowflakeEvent(event.EventOnOfferCreated{
 		WebRTCLocalDescription: localDescription,
@@ -186,17 +153,16 @@ func (c *WebRTCPeer) connect(config *webrtc.Configuration, broker *BrokerChannel
 	}
 	log.Printf("Received Answer.\n")
 	err = c.pc.SetRemoteDescription(*answer)
-	if nil != err {
+	if err != nil {
 		log.Println("WebRTC: Unable to SetRemoteDescription:", err)
 		return err
 	}
 
-	// Wait for the datachannel to open or time out
 	select {
 	case <-c.open:
 	case <-time.After(DataChannelTimeout):
 		c.transport.Close()
-		err = errors.New("timeout waiting for DataChannel.OnOpen")
+		err := errors.New("timeout waiting for DataChannel.OnOpen")
 		c.eventsLogger.OnNewSnowflakeEvent(event.EventOnSnowflakeConnectionFailed{Error: err})
 		return err
 	}
@@ -205,60 +171,39 @@ func (c *WebRTCPeer) connect(config *webrtc.Configuration, broker *BrokerChannel
 	return nil
 }
 
-// preparePeerConnection creates a new WebRTC PeerConnection and returns it
-// after non-trickle ICE candidate gathering is complete.
-func (c *WebRTCPeer) preparePeerConnection(config *webrtc.Configuration) error {
-	var err error
+func (c *WebRTCPeer) preparePeerConnection(
+	config *webrtc.Configuration,
+	keepLocalAddresses bool,
+) error {
 	s := webrtc.SettingEngine{}
-	s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
-	// Use the SetNet setting https://pkg.go.dev/github.com/pion/webrtc/v3#SettingEngine.SetNet
-	// to get snowflake working in shadow (where the AF_NETLINK family is not implemented).
-	// These two lines of code functionally revert a new change in pion by silently ignoring
-	// when net.Interfaces() fails, rather than throwing an error
+	if !keepLocalAddresses {
+		s.SetIPFilter(func(ip net.IP) bool {
+			return !util.IsLocal(ip) && !ip.IsLoopback() && !ip.IsUnspecified()
+		})
+		s.SetICEMulticastDNSMode(ice.MulticastDNSModeDisabled)
+	}
+	s.SetIncludeLoopbackCandidate(keepLocalAddresses)
 	var vnet transport.Net
 	vnet, _ = stdnet.NewNet()
-
 	if c.proxy != nil {
-		if err = proxy.CheckProxyProtocolSupport(c.proxy); err != nil {
+		if err := proxy.CheckProxyProtocolSupport(c.proxy); err != nil {
 			return err
 		}
 		socksClient := proxy.NewSocks5UDPClient(c.proxy)
 		vnet = proxy.NewTransportWrapper(&socksClient, vnet)
 	}
-
 	s.SetNet(vnet)
 	api := webrtc.NewAPI(webrtc.WithSettingEngine(s))
+	var err error
 	c.pc, err = api.NewPeerConnection(*config)
 	if err != nil {
 		log.Printf("NewPeerConnection ERROR: %s", err)
 		return err
 	}
-	/*
-		c.pc.OnICECandidate(func(c *webrtc.ICECandidate) {
-			if c != nil && c.Address != "" {
-				logMessage := fmt.Sprintf("[SNOWFLAKE] Proxy IP Address: %s (Type: %s)\n", c.Address, c.Typ)
-
-				// Print to stdout
-				fmt.Print(logMessage)
-
-				// Add to log file
-				f, err := os.OpenFile("proxy_ips.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-				if err == nil {
-					defer f.Close()
-					f.WriteString(logMessage)
-				} else {
-					fmt.Println("Error opening log file:", err)
-				}
-			}
-		})
-	*/
-
 	ordered := true
 	dataChannelOptions := &webrtc.DataChannelInit{
 		Ordered: &ordered,
 	}
-	// We must create the data channel before creating an offer
-	// https://github.com/pion/webrtc/wiki/Release-WebRTC@v3.0.0#a-data-channel-is-no-longer-implicitly-created-with-a-peerconnection
 	dc, err := c.pc.CreateDataChannel(c.id, dataChannelOptions)
 	if err != nil {
 		log.Printf("CreateDataChannel ERROR: %s", err)
@@ -277,13 +222,9 @@ func (c *WebRTCPeer) preparePeerConnection(config *webrtc.Configuration) error {
 		c.eventsLogger.OnNewSnowflakeEvent(event.EventOnSnowflakeConnectionFailed{Error: err})
 	})
 	dc.OnMessage(func(msg webrtc.DataChannelMessage) {
-		if len(msg.Data) <= 0 {
-			log.Println("0 length message---")
-		}
 		n, err := c.writePipe.Write(msg.Data)
 		c.bytesLogger.addInbound(int64(n))
 		if err != nil {
-			// TODO: Maybe shouldn't actually close.
 			log.Println("Error writing to SOCKS pipe")
 			if inerr := c.writePipe.CloseWithError(err); inerr != nil {
 				log.Printf("c.writePipe.CloseWithError returned error: %v", inerr)
@@ -298,17 +239,13 @@ func (c *WebRTCPeer) preparePeerConnection(config *webrtc.Configuration) error {
 	log.Println("WebRTC: DataChannel created")
 
 	offer, err := c.pc.CreateOffer(nil)
-	// TODO: Potentially timeout and retry if ICE isn't working.
 	if err != nil {
 		log.Println("Failed to prepare offer", err)
 		c.pc.Close()
 		return err
 	}
 	log.Println("WebRTC: Created offer")
-
-	// Allow candidates to accumulate until ICEGatheringStateComplete.
 	done := webrtc.GatheringCompletePromise(c.pc)
-	// Start gathering candidates
 	err = c.pc.SetLocalDescription(offer)
 	if err != nil {
 		log.Println("Failed to apply offer", err)
@@ -316,26 +253,22 @@ func (c *WebRTCPeer) preparePeerConnection(config *webrtc.Configuration) error {
 		return err
 	}
 	log.Println("WebRTC: Set local description")
-
-	<-done // Wait for ICE candidate gathering to complete.
-
+	<-done
 	return nil
 }
 
-// cleanup closes all channels and transports
 func (c *WebRTCPeer) cleanup() {
-	// Close this side of the SOCKS pipe.
-	if c.writePipe != nil { // c.writePipe can be nil in tests.
+	if c.writePipe != nil {
 		c.writePipe.Close()
 	}
-	if nil != c.transport {
+	if c.transport != nil {
 		log.Printf("WebRTC: closing DataChannel")
 		c.transport.Close()
 	}
-	if nil != c.pc {
+	if c.pc != nil {
 		log.Printf("WebRTC: closing PeerConnection")
 		err := c.pc.Close()
-		if nil != err {
+		if err != nil {
 			log.Printf("Error closing peerconnection...")
 		}
 	}

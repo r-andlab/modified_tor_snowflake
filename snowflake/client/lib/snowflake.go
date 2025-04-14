@@ -144,7 +144,7 @@ func NewSnowflakeClient(config ClientConfig) (*Transport, error) {
 		log.Printf("url: %v", strings.Join(server.URLs, " "))
 	}
 
-	// Maintain backwards compatability with old FrontDomain field of ClientConfig
+	// Maintain backwards compatibility with old FrontDomain field of ClientConfig
 	if (len(config.FrontDomains) == 0) && (config.FrontDomain != "") {
 		config.FrontDomains = []string{config.FrontDomain}
 	}
@@ -156,14 +156,21 @@ func NewSnowflakeClient(config ClientConfig) (*Transport, error) {
 	}
 	go updateNATType(iceServers, broker, config.CommunicationProxy)
 
+	//natPolicy := &NATPolicy{}
+
 	max := 1
 	if config.Max > max {
 		max = config.Max
 	}
 	eventsLogger := event.NewSnowflakeEventDispatcher()
-	transport := &Transport{dialer: NewWebRTCDialerWithEventsAndProxy(broker, iceServers, max, eventsLogger, config.CommunicationProxy), eventDispatcher: eventsLogger}
+	//implementing different function defined by lib/rendezvous.go: NewWebRTCDialerWithEventsAndProxy()
+	transport := &Transport{
+		dialer:          NewWebRTCDialerWithEventsAndProxy(broker, iceServers, max, eventsLogger, config.CommunicationProxy),
+		eventDispatcher: eventsLogger,
+	}
 
 	return transport, nil
+
 }
 
 // Dial creates a new Snowflake connection.
