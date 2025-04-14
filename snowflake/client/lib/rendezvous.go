@@ -26,12 +26,12 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"github.com/yl2chen/cidranger"
 
+	utlsutil "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/ptutil/utls"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/certs"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/event"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/messages"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/nat"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/util"
-	utlsutil "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/utls"
 )
 
 const (
@@ -63,9 +63,8 @@ type BrokerChannel struct {
 
 // Paths to locally stored CAIDA datasets
 const (
-	caidaIPv4File = `C:\Users\Ryan\Desktop\routeviews-rv2-20250310-1200.pfx2as`
-	caidaIPv6File = `C:\Users\Ryan\Desktop\routeviews-rv6-20250312-1200.pfx2as`
-	logFilePath   = "proxy_ASNs.log"
+	caidaIPv4File = `/home/ubuntu/tor-snowflake/prefix-data/routeviews-rv2-20250310-1200.pfx2as`
+	caidaIPv6File = `/home/ubuntu/tor-snowflake/prefix-data/routeviews-rv6-20250312-1200.pfx2as`
 )
 
 // Global Data Structures
@@ -261,7 +260,7 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 			fmt.Println("Extracted IP Successfully")
 
 			asn := getASN(ip)
-			fmt.Printf("ASN: %s\n", asn)
+			fmt.Printf("ASN found\n")
 
 			logASN(ip, asn) // Performs IP hashing
 			ip = ""
@@ -329,7 +328,7 @@ func logASN(ip, asn string) {
 	ip = ""
 
 	// Open CSV file for appending
-	f, err := os.OpenFile("proxy_ASNs.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("restricted_proxy_ASNs.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening CSV file:", err)
 		return
@@ -395,7 +394,7 @@ func (bc *BrokerChannel) SetNATType(NATType string) {
 	fmt.Println("Entering SetNATType() function...") // Debugging Log
 	//NATType = "restricted"
 	//NATType = "unrestricted"
-	hardcodedNATType := "restricted"
+	hardcodedNATType := "unrestricted"
 
 	bc.lock.Lock()
 	bc.natType = NATType
