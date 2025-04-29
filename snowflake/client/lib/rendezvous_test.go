@@ -416,7 +416,7 @@ func TestBrokerChannel(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		brokerChannel, err := newBrokerChannelFromConfig(ClientConfig{
+		brokerChannel, err := NewBrokerChannelFromConfig(ClientConfig{
 			BrokerURL:         mockServer.URL,
 			BridgeFingerprint: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 		})

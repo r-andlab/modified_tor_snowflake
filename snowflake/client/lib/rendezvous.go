@@ -26,12 +26,12 @@ import (
 	utls "github.com/refraction-networking/utls"
 	"github.com/yl2chen/cidranger"
 
-	utlsutil "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/ptutil/utls"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/certs"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/event"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/messages"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/nat"
 	"gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/util"
+	utlsutil "gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/snowflake/v2/common/utls"
 )
 
 const (
@@ -63,8 +63,9 @@ type BrokerChannel struct {
 
 // Paths to locally stored CAIDA datasets
 const (
-	caidaIPv4File = `C:\Users\Ryan\Desktop\Snowflake-Data\routeviews-rv2-20250310-1200.pfx2as`
-	caidaIPv6File = `C:\Users\Ryan\Desktop\Snowflake-Data\routeviews-rv6-20250312-1200.pfx2as`
+	caidaIPv4File = `/home/ubuntu/tor-snowflake/prefix-data/routeviews-rv2-20250310-1200.pfx2as`
+	caidaIPv6File = `/home/ubuntu/tor-snowflake/prefix-data/routeviews-rv6-20250312-1200.pfx2as`
+	logFilePath   = "proxy_ASNs.log"
 )
 
 // Global Data Structures
@@ -102,6 +103,7 @@ func init() {
 	}
 
 	randomHMACKey = generateRandomKey() // generate key upon initialization
+	//continue
 }
 
 // Generates new random key upon each iteration
@@ -111,7 +113,7 @@ func generateRandomKey() []byte {
 	if err != nil {
 		log.Fatalf("Failed to generate HMAC key: %v", err)
 	}
-	fmt.Println("Generated key!")
+	fmt.Println("Initialized encryption key, loaded CAIDA datasets")
 	return key
 }
 
@@ -138,7 +140,7 @@ func createBrokerTransport(proxy *url.URL) http.RoundTripper {
 	return transport
 }
 
-func newBrokerChannelFromConfig(config ClientConfig) (*BrokerChannel, error) {
+func NewBrokerChannelFromConfig(config ClientConfig) (*BrokerChannel, error) {
 	log.Println("Rendezvous using Broker at:", config.BrokerURL)
 
 	if len(config.FrontDomains) != 0 {
@@ -196,7 +198,7 @@ func newBrokerChannelFromConfig(config ClientConfig) (*BrokerChannel, error) {
 // Negotiate uses a RendezvousMethod to send the client's WebRTC SDP offer
 // and receive a snowflake proxy WebRTC SDP answer in return.
 func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.SessionDescription, error) {
-	fmt.Println("Entering Negotiate() function...") // Debugging Log
+	fmt.Println("Negotiate with broker") // Debugging Log
 
 	if !bc.keepLocalAddresses {
 		offer = &webrtc.SessionDescription{
@@ -223,16 +225,16 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 		return nil, err
 	}
 
-	fmt.Println("Sending request to broker...") // Debugging Log
+	fmt.Println("Sending request to broker") // Debugging Log
 
 	// Do the exchange using our RendezvousMethod.
 	encResp, err := bc.Rendezvous.Exchange(encReq)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Received answer: %s", string(encResp))
+	//log.Printf("Received answer: %s", string(encResp))
 
-	fmt.Println("Received answer...") // Debugging Log
+	fmt.Println("Received response from broker") // Debugging Log
 
 	// Decode the client poll response.
 	resp, err := messages.DecodeClientPollResponse(encResp)
@@ -257,10 +259,8 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 		if ip == "" {
 			fmt.Println("No IP address found in answer.")
 		} else {
-			fmt.Println("Extracted IP Successfully")
-
 			asn := getASN(ip)
-			fmt.Printf("ASN found\n")
+			fmt.Println("ASN recorded")
 
 			logASN(ip, asn) // Performs IP hashing
 			ip = ""
@@ -271,7 +271,7 @@ func (bc *BrokerChannel) Negotiate(offer *webrtc.SessionDescription) (*webrtc.Se
 	}
 
 	// Return an Error to indicate end of program and restart execution
-	return nil, fmt.Errorf("- snowflake process stopped after logging ip")
+	return nil, fmt.Errorf("- intentional error, retrying now")
 }
 
 // Extract IP Address from SDP
@@ -328,7 +328,7 @@ func logASN(ip, asn string) {
 	ip = ""
 
 	// Open CSV file for appending
-	f, err := os.OpenFile("unrestricted_proxy_ASNs.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile("proxy_ASNs.csv", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Println("Error opening CSV file:", err)
 		return
@@ -384,14 +384,14 @@ func loadCAIDAData(filePath string, tree cidranger.Ranger) error {
 		return fmt.Errorf("error reading CAIDA dataset: %v", err)
 	}
 
-	fmt.Printf("CAIDA IP-to-ASN data loaded from %s. Total prefixes: %d\n", filePath, count)
+	fmt.Printf("CAIDA IP-to-ASN data loaded. Total prefixes: %d\n", count)
 	return nil
 }
 
 // SetNATType sets the NAT type of the client so we can send it to the WebRTC broker.
 // Sets NAT Type to either "unrestricted" or "restricted"
 func (bc *BrokerChannel) SetNATType(NATType string) {
-	fmt.Println("Entering SetNATType() function...") // Debugging Log
+	fmt.Println("Setting NAT Type") // Debugging Log
 	//NATType = "restricted"
 	//NATType = "unrestricted"
 	hardcodedNATType := "restricted"

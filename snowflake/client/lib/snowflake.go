@@ -150,7 +150,7 @@ func NewSnowflakeClient(config ClientConfig) (*Transport, error) {
 	}
 
 	// Rendezvous with broker using the given parameters.
-	broker, err := newBrokerChannelFromConfig(config)
+	broker, err := NewBrokerChannelFromConfig(config)
 	if err != nil {
 		return nil, err
 	}
