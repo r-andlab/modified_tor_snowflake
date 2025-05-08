@@ -17,62 +17,68 @@ func main() {
 	// - Generate HMAC key
 	// - Set up radix trees
 
-	for {
-		// Create config object with broker url and front domains
-		config := lib.ClientConfig{
-			BrokerURL:    "https://1098762253.rsc.cdn77.org", // from torrc
-			FrontDomains: []string{"www.phpmyadmin.net"},     // from torrc
-			//UTLSClientID:  "hellorandomizedalpn",              // optional
-			KeepLocalAddresses: false,
-		}
+	// Create config object with broker url and front domains
+	config := lib.ClientConfig{
+		BrokerURL:          "https://1098762253.rsc.cdn77.org", // Broker URL to send WebRTC offers to
+		FrontDomains:       []string{"www.phpmyadmin.net"},     // fronting domain to reach broker
+		KeepLocalAddresses: false,
+	}
 
-		// Build broker channel to send webrtc offer
-		broker, err := lib.NewBrokerChannelFromConfig(config)
-		if err != nil {
-			log.Printf("Failed to create BrokerChannel: %v", err)
-			time.Sleep(10 * time.Second) // sleep upon error to avoid possible congestion
-			continue
-		}
+	// Create a reusable BrokerChannel for communicating with the broker
+	broker, err := lib.NewBrokerChannelFromConfig(config)
+	if err != nil {
+		log.Fatalf("Failed to create BrokerChannel: %v", err)
+	}
 
-		// Specify webrtc config object for associating ICE servers
-		webrtcConfig := &webrtc.Configuration{
-			ICEServers: []webrtc.ICEServer{
-				{
-					URLs: []string{"stun:stun.antisip.com:3478"},
-				},
+	// Define reusable WebRTC ICE server configuration
+	webrtcConfig := &webrtc.Configuration{
+		ICEServers: []webrtc.ICEServer{
+			{
+				// Public STUN server for NAT traversal
+				URLs: []string{"stun:stun.antisip.com:3478"},
 			},
-		}
+		},
+	}
 
-		// Create new webrtc peer connection, using prev ICE servers
-		// Like a socket to facilitate the end-to-end communication
+	// infinite loop for probing new proxies
+	for {
+		// Create a new WebRTC peer connection per iteration
 		peerConnection, err := webrtc.NewPeerConnection(*webrtcConfig)
 		if err != nil {
 			log.Fatalf("Failed to create PeerConnection: %v", err)
 		}
 
-		// Create webrtc data channel between prober and peer
+		// Create a data channel
 		_, err = peerConnection.CreateDataChannel("data", nil)
 		if err != nil {
+			peerConnection.Close() // clean up on failure
 			log.Fatalf("Failed to create DataChannel: %v", err)
 		}
 
-		// Generate webrtc offer: Session Description Protocol
+		// Generate WebRTC SDP offer to initiate connection
 		offer, err := peerConnection.CreateOffer(nil)
 		if err != nil {
+			peerConnection.Close() // clean up on failure
 			log.Fatalf("Failed to create offer: %v", err)
 		}
 
-		// Set offer (required by webrtc)
+		// Set local description
 		err = peerConnection.SetLocalDescription(offer)
 		if err != nil {
+			peerConnection.Close() // clean up on failure
 			log.Fatalf("Failed to set local description: %v", err)
 		}
 
-		// Send offer to broker: Negotiate()
-		// Try to connect, log IP/ASN, fail and return error, retry
+		// Call negotiate (returns only error)
 		_, err = broker.Negotiate(&offer)
 		if err != nil {
 			log.Printf("Negotiate(): %v", err)
 		}
+
+		// Close the peer connection
+		peerConnection.Close()
+
+		// Sleep before the next iteration
+		time.Sleep(10 * time.Second)
 	}
 }
